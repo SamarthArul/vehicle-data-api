@@ -93,11 +93,13 @@ def get_vehicle(vin):
 
 @app.route('/vehicle', methods=['POST'])
 def create_vehicle():
+    if not request.is_json:
+        abort(400, description="Invalid JSON payload")
     data = request.json
     required_fields = ['VIN', 'manufacturer_name', 'description', 'horse_power', 'model_name', 'model_year', 'purchase_price', 'fuel_type']
 
     if not all(field in data for field in required_fields):
-        abort(400, description="Missing fields in request")
+        abort(422, description="Missing required fields")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -115,10 +117,47 @@ def create_vehicle():
 
     return jsonify(data), 201
 
+@app.route('/vehicle/<string:vin>', methods=['PUT'])
+def update_vehicle(vin):
+    if not request.is_json:
+        abort(400, description="Invalid JSON payload")
+    data = request.json
+    required_fields = ['manufacturer_name', 'description', 'horse_power', 'model_name', 'model_year', 'purchase_price', 'fuel_type']
+
+    if not all(field in data for field in required_fields):
+        abort(400, description="Missing fields in request")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM Vehicle WHERE VIN = ?", (vin,))
+    existing_vehicle = cursor.fetchone()
+
+    if not existing_vehicle:
+        abort(404, description="Vehicle not found")
+
+    cursor.execute("""
+    UPDATE Vehicle
+    SET manufacturer_name = ?, description = ?, horse_power = ?, model_name = ?, model_year = ?, purchase_price = ?, fuel_type = ?
+    WHERE VIN = ?
+    """, (data['manufacturer_name'], data['description'], data['horse_power'], data['model_name'], data['model_year'], data['purchase_price'], data['fuel_type'], vin))
+    conn.commit()
+    conn.close()
+
+    return jsonify(data), 200
+
 @app.route('/vehicle/<string:vin>', methods=['DELETE'])
 def delete_vehicle(vin):
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM Vehicle WHERE VIN = ?", (vin,))
+    vehicle = cursor.fetchone()
+
+    if not vehicle:
+        conn.close()
+        abort(404, description="Vehicle not found")
+
     cursor.execute("DELETE FROM Vehicle WHERE VIN = ?", (vin,))
     conn.commit()
     conn.close()

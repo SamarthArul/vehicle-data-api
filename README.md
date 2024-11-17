@@ -16,3 +16,7 @@ New databases are initialized with the following sample vehicles:
 3  Tesla, Electric Sedan, 450, Model S, 2024, 79999.99, Electric
 ```
 
+## To Run the Test Suite:
+python3 test_suite.py
+
+
